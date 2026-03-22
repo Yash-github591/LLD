@@ -28,8 +28,8 @@ int main() {
     JudgeAnalytics judgeAnalytics2 = JudgeAnalytics::getInstance();
     
     // Print memory addresses to show they're the same instance
-    cout << judgeAnalytics << endl;
-    cout << judgeAnalytics2 << endl;
+    cout<< "judgeAnalytics: " << &judgeAnalytics << endl;
+    cout<< "judgeAnalytics2: " << &judgeAnalytics2 << endl;
     
     return 0;
 }

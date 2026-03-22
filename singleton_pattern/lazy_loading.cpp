@@ -1,4 +1,5 @@
 #include <bits/stdc++.h>
+#include <mutex>
 using namespace std;
 
 // Lazy‑loading singleton.
@@ -28,7 +29,7 @@ public:
 };
 
 // Lazy loading(thread safe).
-Class JudgeAnalytics_ThreadSafe {
+class JudgeAnalytics_ThreadSafe {
 private:
     static JudgeAnalytics_ThreadSafe *instance;
     static mutex mtx; // mutex for thread safety
