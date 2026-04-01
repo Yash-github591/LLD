@@ -30,21 +30,24 @@ private:
     string drink;
     
 public:
-    // Forward declare BurgerBuilder to allow its use in the constructor
+    /*
+    Forward declare the nested builder class so it can be referenced by name.
+    The builder class is declared in the public section to allow users to create 
+    builder objects and build BurgerMeal instances.
+    */
     class BurgerBuilder;
+
+private:
+    // Declare the Builder class as a friend to allow it to access this private constructor
+    friend class BurgerBuilder;
 
     /* 
     Private constructor to enforce the use of the Builder. 
     The constructor is private to prevent direct instantiation of the BurgerMeal class. 
     */
-    BurgerMeal(BurgerBuilder *builder) {
-        this->bunType = builder->bunType;
-        this->patty = builder->patty;
-        this->hasCheese = builder->hasCheese;
-        this->toppings = builder->toppings;
-        this->side = builder->side;
-        this->drink = builder->drink;
-    }
+    BurgerMeal(BurgerBuilder builder);
+
+public:
 
     // Function to display the details of the BurgerMeal
     void display() {
@@ -53,7 +56,7 @@ public:
         cout << "Patty: " << patty << endl;
         cout << "Has Cheese: " << (hasCheese ? "Yes" : "No") << endl;
         cout << "Toppings: ";
-        for (const auto& topping : toppings) {
+        for (auto& topping : toppings) {
             cout << topping << " ";
         }
         cout<< "Side: " << side << endl;
@@ -61,8 +64,6 @@ public:
         cout << endl;
     }
 
-    // Declare the static Builder class as a friend to allow it to access the private constructor
-    friend class BurgerBuilder;
 
     // Static Builder class to construct the BurgerMeal object
     class BurgerBuilder {
@@ -89,32 +90,32 @@ public:
         }
 
         // Method to set the optional component hasCheese
-        BurgerBuilder& setCheese(bool hasCheese) {
+        BurgerBuilder setCheese(bool hasCheese) {
             this->hasCheese = hasCheese;
             return *this; // Return the builder object for method chaining
         }
 
         // Method to add a topping to the toppings vector
-        BurgerBuilder& addTopping(const string& topping) {
+        BurgerBuilder addTopping(const string topping) {
             this->toppings.push_back(topping);
             return *this; // Return the builder object for method chaining
         }
 
         // Method to set the optional component side
-        BurgerBuilder& setSide(const string& side) {
+        BurgerBuilder setSide(const string side) {
             this->side = side;
             return *this; // Return the builder object for method chaining
         }
 
         // Method to set the optional component drink
-        BurgerBuilder& setDrink(const string& drink) {
+        BurgerBuilder setDrink(const string drink) {
             this->drink = drink;
             return *this; // Return the builder object for method chaining
         }
 
         // Method to build and return the final BurgerMeal object
         BurgerMeal build() {
-            return BurgerMeal(this); // Pass the builder object to the BurgerMeal constructor
+            return BurgerMeal(*this); // Pass the builder object to the BurgerMeal constructor
         }
 
         // Declare the BurgerMeal class as a friend to allow it to access 
@@ -122,6 +123,16 @@ public:
         friend class BurgerMeal;
     };
 };
+
+// Define private BurgerMeal constructor after nested builder type is complete
+BurgerMeal::BurgerMeal(BurgerBuilder builder) {
+    this->bunType = builder.bunType;
+    this->patty = builder.patty;
+    this->hasCheese = builder.hasCheese;
+    this->toppings = builder.toppings;
+    this->side = builder.side;
+    this->drink = builder.drink;
+}
 
 // Main function to demonstrate the Builder Pattern
 int main() {
