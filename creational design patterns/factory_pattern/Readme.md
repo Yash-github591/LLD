@@ -1,6 +1,7 @@
 # Factory Design Pattern
 
 ## Introduction
+
 The Factory Design Pattern is a creational design pattern that creates objects through a factory method instead of directly using `new`.
 
 The client asks the factory for an object, and the factory decides which class to create. This keeps code flexible and loosely coupled.
@@ -8,6 +9,7 @@ The client asks the factory for an object, and the factory decides which class t
 ---
 
 ## Problem it Solves
+
 Direct object creation makes the client dependent on concrete classes:
 
 ```cpp
@@ -20,6 +22,7 @@ else if(mode == "road") {
 ```
 
 ### Issues
+
 - Tight coupling with concrete classes
 - Hard to add new types
 - Code needs modification when requirements change
@@ -27,6 +30,7 @@ else if(mode == "road") {
 ---
 
 ## How Factory Helps
+
 Object creation is handled by a factory:
 
 ```cpp
@@ -34,6 +38,7 @@ Logistics* obj = LogisticsFactory::createLogistics(mode);
 ```
 
 ### Benefits
+
 - Reduces coupling
 - Easy to extend
 - Centralized object creation
@@ -42,6 +47,7 @@ Logistics* obj = LogisticsFactory::createLogistics(mode);
 ---
 
 ## When to Use Factory Pattern
+
 - When object type is decided at runtime
 - When you want flexible and extendable code
 - When many classes implement the same interface
@@ -50,6 +56,7 @@ Logistics* obj = LogisticsFactory::createLogistics(mode);
 ---
 
 ## When NOT to Use Factory Pattern
+
 - When there is only one class to create
 - When object creation is very simple
 - When it adds unnecessary complexity
@@ -57,4 +64,5 @@ Logistics* obj = LogisticsFactory::createLogistics(mode);
 ---
 
 ## Summary
+
 Use Factory Pattern when object creation depends on conditions and you want flexible, scalable code.

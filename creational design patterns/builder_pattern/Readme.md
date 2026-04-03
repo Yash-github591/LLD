@@ -1,6 +1,7 @@
 # Builder Design Pattern
 
 ## Introduction
+
 The Builder Design Pattern is a creational pattern that builds a complex object step-by-step.  
 It separates construction from representation.
 
@@ -10,6 +11,7 @@ BurgerMeal built via `BurgerMeal::BurgerBuilder` with required (`bunType`, `patt
 ---
 
 ## Problem it Solves
+
 Hard-to-manage constructors with many params:
 
 ```cpp
@@ -17,6 +19,7 @@ BurgerMeal meal("Sesame", "Potato", true, {"Lettuce","Tomato"}, "Onion Rings", "
 ```
 
 Issues:
+
 - Long parameter lists
 - Order confusion
 - Many overloads
@@ -25,6 +28,7 @@ Issues:
 ---
 
 ## How Builder Helps
+
 Fluent builder:
 
 ```cpp
@@ -38,6 +42,7 @@ BurgerMeal meal = BurgerMeal::BurgerBuilder("Sesame","Potato")
 ```
 
 Benefits:
+
 - Readable API
 - Required enforced in builder constructor
 - Optional set as needed
@@ -46,6 +51,7 @@ Benefits:
 ---
 
 ## When to Use
+
 - Many params
 - Optional fields
 - Configurable combinations
@@ -54,6 +60,7 @@ Benefits:
 ---
 
 ## When Not to Use
+
 - Simple objects
 - Few fields
 - Unnecessary overhead
@@ -61,4 +68,5 @@ Benefits:
 ---
 
 ## Summary
+
 Use Builder for complex object construction with clear, maintainable client code.
