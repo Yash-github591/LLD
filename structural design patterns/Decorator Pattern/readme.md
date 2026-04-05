@@ -45,10 +45,7 @@ Decorator allows adding features dynamically by wrapping objects.
 Example:
 
 ```cpp
-Coffee* coffee =
-new SugarDecorator(
-new MilkDecorator(
-new Cappuccino()));
+Coffee* coffee = new SugarDecorator(new MilkDecorator(new Cappuccino()));
 ```
 
 Each decorator:

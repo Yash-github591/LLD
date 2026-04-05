@@ -12,7 +12,7 @@ Each object provides a `clone()` method that returns a copy of itself. This redu
 
 Direct object creation can be expensive or complex:
 
-```bash
+```cpp
 Circle* c1 = new Circle();   // expensive creation
 Circle* c2 = new Circle();   // repeating same process
 Circle* c3 = new Circle();
@@ -31,7 +31,7 @@ Circle* c3 = new Circle();
 
 Objects are copied from an existing prototype:
 
-```bash
+```cpp
 Shape* shape1 = registry.getPrototype("Circle");
 Shape* shape2 = registry.getPrototype("Circle");
 
