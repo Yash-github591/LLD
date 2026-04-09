@@ -45,17 +45,17 @@ public:
     }
 };
 
-// Playlist interface to create an iterator
-class Playlist {
-public:
-    virtual PlaylistIterator* createIterator() = 0;
-};
-
 // Playlist iterator interface to traverse the playlist
 class PlaylistIterator {
 public:
     virtual bool hasNext() = 0;
     virtual Video* next() = 0;
+};
+
+// Playlist interface to create an iterator
+class Playlist {
+public:
+    virtual PlaylistIterator* createIterator() = 0;
 };
 
 // YoutubePlaylistIterator class to implement the PlaylistIterator interface
