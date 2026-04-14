@@ -25,6 +25,7 @@ A curated collection of classic object-oriented design patterns organized into B
 - **Chain of Responsibility Pattern** – Allows a request to be passed along a chain of potential handlers until it is processed.
 - **Visitor Pattern** – Allows you to add new operations to an existing object structure without modifying the classes of the objects in that structure.
 - **Mediator Pattern** – Reduces complex, direct dependencies between objects by forcing them to communicate indirectly through a centralized mediator object.
+- **Memento Pattern** – Used to capture and save an object's internal state, allowing it to be restored later without violating encapsulation.
 
 ---
 
