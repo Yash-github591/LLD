@@ -131,3 +131,9 @@ It ensures safer, more predictable, and secure system design.
 - Predictable behavior → Independent execution ensures consistent and reliable system performance.
 
 ---
+
+### Creating threads in c++
+
+[Threads in c++ gfg](https://www.geeksforgeeks.org/cpp/multithreading-in-cpp/)
+
+---
