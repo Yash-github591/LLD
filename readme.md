@@ -1,8 +1,15 @@
-# 🧩 Design Patterns in C++
+# 🧩 Design Patterns in C++ and Java
 
 A curated collection of classic object-oriented design patterns organized into Behavioural, Creational, and Structural categories.
 
 ---
+
+## Prerequisites
+
+- A Programming Language(C++/Java).
+- Object Oriented Programming(OOPs) concepts:
+  - [C++ OOPs tutorial](https://medium.com/@bangermadhur/master-lld-fundamentals-of-oops-05a2f9e36ab9)
+  - [Java OOPs tutorial](https://medium.com/@punitmudgal/oop-in-java-from-zero-to-lld-ready-9697462bc7a7)
 
 ## Categories
 
