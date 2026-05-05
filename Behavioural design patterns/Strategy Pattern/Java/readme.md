@@ -1,4 +1,4 @@
-# Strategy Design Pattern (Java)
+# Strategy Design Pattern
 
 ## Introduction
 

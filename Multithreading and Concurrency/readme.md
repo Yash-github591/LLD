@@ -1,4 +1,4 @@
-## Multithreading and Concurrency in C++
+## Multithreading and Concurrency
 
 1. Program: A program is an executable(eg, chrome.exe) file that contains code(eg, chrome.cpp) that
    can be run on a computer. It is a static entity that resides on disk and can be executed
