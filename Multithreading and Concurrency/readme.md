@@ -132,7 +132,9 @@ It ensures safer, more predictable, and secure system design.
 
 ---
 
-### Creating threads in c++
+### Creating threads
+
+[Threads in Java](https://medium.com/@AlexanderObregon/java-multithreading-and-concurrency-best-practices-39c86602e666)
 
 [Threads in c++ gfg](https://www.geeksforgeeks.org/cpp/multithreading-in-cpp/)
 
