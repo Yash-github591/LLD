@@ -68,8 +68,9 @@ ArrayList<CartItem> cart = new ArrayList<>();
 cart.add(item);
 cart.add(bundle);
 
-for (CartItem obj : cart)
+for (CartItem obj : cart){
     obj.display();
+}
 ```
 
 Benefits:
