@@ -8,12 +8,12 @@ This repository contains comprehensive documentation and architectural patterns 
 
 ## Table of Contents
 
-1. [What is an ER Model?](https://www.google.com/search?q=%231-what-is-an-er-model)
-2. [How to Design Tables from Requirements](https://www.google.com/search?q=%232-how-to-design-tables-from-requirements)
-3. [Mapping ER Model to Class Model](https://www.google.com/search?q=%233-mapping-er-model-to-class-model)
-4. [What is a DAO (Data Access Object)?](https://www.google.com/search?q=%234-what-is-a-dao-data-access-object)
-5. [What is a Repository?](https://www.google.com/search?q=%235-what-is-a-repository)
-6. [Real-World Enhancements and Practices](https://www.google.com/search?q=%236-real-world-enhancements-and-practices)
+1. [What is an ER Model?](1-what-is-an-er-model)
+2. [How to Design Tables from Requirements](2-how-to-design-tables-from-requirements)
+3. [Mapping ER Model to Class Model](3-mapping-er-model-to-class-model)
+4. [What is a DAO (Data Access Object)?](4-what-is-a-dao-data-access-object)
+5. [What is a Repository?](5-what-is-a-repository)
+6. [Real-World Enhancements and Practices](6-real-world-enhancements-and-practices)
 
 ---
 
