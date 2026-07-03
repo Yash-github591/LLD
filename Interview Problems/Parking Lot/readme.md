@@ -11,6 +11,11 @@ A low-level design (LLD) for a smart parking lot management system. This documen
 - [Step 1: Identify core entities](#step-1-identify-core-entities)
 - [Step 2: Discuss interaction flow](#step-2-discuss-interaction-flow)
 - [Step 3: Class structure and relationships](#step-3-class-structure-and-relationships)
+- [Step 4: OOP principles and design patterns](#step-4-oop-principles-and-design-patterns)
+- [Step 5: Core use cases and method call chains](#step-5-core-use-cases-and-method-call-chains)
+- [Step 6: Handling edge cases](#step-6-handling-edge-cases)
+- [Step 7: Class diagrams and UML relationships](#step-7-class-diagrams-and-uml-relationships)
+- [Step 8: Key implementation decisions](#step-8-key-implementation-decisions)
 - [Design principles applied](#design-principles-applied)
 - [General guidance for designing systems like this](#general-guidance-for-designing-systems-like-this)
 - [Possible extensions](#possible-extensions)
@@ -344,6 +349,267 @@ PaymentService → PaymentGatewayAdapter → RazorpayAdapter / StripeAdapter →
 ```
 
 Notice that `ExitController` touches five different services in sequence. This is normal — the controller (or a thin orchestrating service just below it) is the natural place for cross-cutting sequencing logic like "compute fee, then pay, then on success generate receipt and release the slot."
+
+## Step 4: OOP principles and design patterns
+
+### Design patterns used
+
+**1. Adapter Pattern** — integrating with different payment gateways (Razorpay, Stripe)
+
+`PaymentGatewayAdapter` is a single interface with one method: `pay(UUID ticketId, double amount)`. `RazorpayAdapter` and `StripeAdapter` both implement it, each translating that common call into whatever their specific SDK or API requires.
+
+```
+PaymentService → PaymentGatewayAdapter (interface)
+                       ↑                ↑
+                RazorpayAdapter    StripeAdapter
+```
+
+`PaymentService` never imports Razorpay or Stripe directly. Adding PayPal tomorrow is one new class — nothing else changes. This is exactly what makes the Extensibility NFR achievable in practice.
+
+**2. Repository Pattern** — data access abstraction
+
+Every entity has a dedicated repository (`TicketRepository`, `SlotRepository`, etc.) that hides how and where data is stored. Services call `ticketRepository.findById(id)` — they have no idea if the backing store is Postgres, DynamoDB, Redis, or a `HashMap`. This is what makes the system testable: swap any repository for an in-memory fake and all service logic tests without touching a real database.
+
+**3. Service Layer Pattern** — business logic separation
+
+Each service owns one business domain: `PricingService` calculates fees, `SlotService` manages slot state, `PaymentService` handles payment orchestration. Controllers are thin wires between the HTTP layer and the services — they do no computation. This separation means a bug in fee calculation is always in `PricingService`, never somewhere else.
+
+### OOP principles applied
+
+**1. Interface Segregation** — separate responsibilities by interface (`PaymentGatewayAdapter`)
+
+The interface is kept minimal — just `pay()` and `getGatewayName()`. Implementations only need to fulfill those two contracts, nothing more. This keeps adapter classes small and focused.
+
+**2. Dependency Inversion** — services depend on interfaces, not concrete implementations
+
+`PaymentService` holds a reference of type `PaymentGatewayAdapter`, not `RazorpayAdapter`. `SlotService` takes a `SlotRepository` in its constructor, not a specific DB client. High-level modules (services) never depend on low-level modules (adapters, DB drivers) directly — both depend on the abstraction in the middle. This is what makes `setDefaultGateway()` and in-memory repository swapping work cleanly.
+
+**3. Single Responsibility** — each class has one clear purpose
+
+`PricingService` calculates fees. `ReceiptService` generates receipts. `TicketService` manages tickets. A change to receipt formatting never risks breaking fee calculation because the code for those two concerns lives in completely separate classes.
+
+**4. Open/Closed** — easy to extend with new vehicle types, pricing strategies, payment gateways
+
+The system is open for extension (add `VAN` to the `VehicleType` enum, add a `PaypalAdapter`) but closed for modification (adding those doesn't require changing `PricingService`, `PaymentService`, or any existing adapter). The enums and interface boundaries are the extension points, designed in from the start.
+
+**5. Encapsulation** — domain objects encapsulate their data and behavior
+
+`ParkingSlot` doesn't expose a `setIsOccupied(boolean)` setter — it exposes `occupy()` and `release()`, both of which enforce their own preconditions (can't occupy an already-occupied slot, can't release a free one). `Ticket` exposes `deactivate()` rather than `setIsActive(false)`. `Payment` exposes `markAsSuccess()` and `markAsFailed()`. The domain objects own their state transitions — no external class can put them into an invalid state by setting a raw field.
+
+### How they work together
+
+These aren't independent choices — they reinforce each other:
+
+- Encapsulation in the domain layer makes the Repository safe (repos persist objects whose state is always valid)
+- Repository Pattern makes DIP possible (services depend on the repo interface, not a DB)
+- DIP makes the Adapter Pattern work (PaymentService depends on the adapter interface, not Razorpay)
+- SRP keeps each class small enough to understand and test in isolation
+- Open/Closed is the result of all the above — when each class has one job and depends on interfaces, adding new behavior rarely requires modifying existing classes
+
+---
+
+## Step 5: Core use cases and method call chains
+
+This step ties together everything from the design into concrete, ordered method-call chains — essentially the actual call stack that fires for each use case. Writing these out explicitly is what catches ordering bugs before they're coded.
+
+**Entry use case**
+
+```
+enterVehicle()
+  → SlotService.allocateSlot()
+  → TicketService.generateTicket()
+  → TicketRepository.save()
+  → return EntryResult
+```
+
+`allocateSlot()` must succeed before `generateTicket()` is even called — you can't issue a ticket for a slot that doesn't exist yet.
+
+**Exit use case**
+
+```
+exitVehicle()
+  → TicketService.getTicket()
+  → PricingService.calculateFee()
+  → PaymentService.processPayment()
+      → PaymentGatewayAdapter.pay()
+  → ReceiptService.generateReceipt()
+  → SlotService.releaseSlot()          ← only after payment succeeds
+  → TicketService.deactivateTicket()   ← prevents ticket reuse
+  → return ExitResult
+```
+
+The order is deliberate. `releaseSlot()` comes _after_ `generateReceipt()` and only after confirmed payment. If payment fails, the chain stops before `releaseSlot()` — the slot stays occupied, the vehicle stays in the lot, and the driver can retry. `deactivateTicket()` is last, making the ticket unusable for a second exit even if the same ID is presented again.
+
+**Admin use cases**
+
+```
+addFloor()      → AdminService → FloorRepository.save()
+addSlot()       → AdminService → SlotRepository.save()
+updatePricing() → AdminService → PricingRuleRepository.save()
+```
+
+These are simpler, single-hop chains — admin controller methods go straight through `AdminService` to the relevant repository's `save()`. There's no multi-step orchestration because admin actions are independent writes, not multi-stage workflows.
+
+---
+
+## Step 6: Handling edge cases
+
+### Edge case solutions and implementation strategies
+
+**1. Exit without ticket → admin override via `AdminController`**
+
+A driver loses their ticket, or the kiosk scanner fails. Without an override path, the vehicle is stuck — the gate won't open and the slot stays marked occupied forever. A dedicated admin endpoint can manually close out a ticket by license plate lookup, release the slot, and generate a receipt with a manually-set fee. This is why `AdminController` exists as a separate controller rather than folding admin operations into `EntryController` or `ExitController`.
+
+_Implementation:_ special admin endpoints for manual operations through `AdminController` (e.g. `forceExitByPlate(licensePlate)`).
+
+**2. Payment failed → `PaymentGatewayAdapter` returns boolean, handle failure in `PaymentService`**
+
+Rather than throwing an exception on payment failure, the adapter returns a simple `boolean`. `PaymentService` interprets that boolean and decides what to do — retry with the same gateway, switch to Stripe, or give up after `maxRetries`. Crucially, the slot is _not_ released on payment failure. The vehicle stays physically in the lot, so keeping the slot occupied is the correct state.
+
+_Implementation:_ `processPaymentWithRetry(ticketId, fee, maxRetries)` — retries up to N times, switching from Razorpay to Stripe on the second attempt.
+
+**3. Vehicle type mismatch → verify at entry and exit through `SlotService`**
+
+A TRUCK trying to park in a BIKE slot is prevented at allocation time — `findAvailableSlot(vehicleType)` filters on `slotType == vehicleType`, so a mismatched slot is never returned. At exit, the slot type can be cross-checked against the vehicle type on the ticket as a sanity guard before releasing.
+
+_Implementation:_ `SlotRepository.findAvailableSlot(VehicleType)` enforces type matching at the DB query level, not in application logic — mismatches are impossible to allocate, not just caught after the fact.
+
+**4. Time mismatch → use system clock consistently across all services**
+
+`PricingService.calculateHourlyFee()` and `ReceiptService.generateReceiptText()` both need timestamps. If each calls `LocalDateTime.now()` independently, clock drift between kiosks means the entry and exit times could come from different clocks, producing a wrong duration and a wrong fee.
+
+_Implementation:_ a centralized time service — a single source of truth for the current timestamp that all services use. In production, typically the database server's clock, or a shared `Clock` object injected into every service that needs it. The `calculateFee(Ticket, VehicleType, LocalDateTime exitTime)` overload already accepts an externally-supplied timestamp for this reason.
+
+**5. Slot inconsistency → run periodic reconciliation service**
+
+Under real-world conditions — process crashes, network timeouts, failed transactions — the state of `isOccupied` can drift out of sync with reality. A slot might show occupied with no active ticket, or an active ticket might reference a slot marked free.
+
+_Implementation:_ a background `ReconciliationService` that runs on a schedule (e.g. every 5 minutes), calls `TicketRepository.findActiveTickets()`, cross-checks each ticket's `slotId` against `SlotRepository.findAllOccupied()`, and flags or auto-corrects any mismatches.
+
+### Summary table
+
+| Edge case             | Root cause                              | Strategy                                   | Where in code                                     |
+| --------------------- | --------------------------------------- | ------------------------------------------ | ------------------------------------------------- |
+| Exit without ticket   | Physical ticket lost or scanner failure | Admin manual override endpoint             | `AdminController.forceExitByPlate()`              |
+| Payment failed        | Gateway down or timeout                 | Retry with fallback gateway, hold slot     | `PaymentService.processPaymentWithRetry()`        |
+| Vehicle type mismatch | Wrong slot type allocated               | Type-safe slot allocation query            | `SlotRepository.findAvailableSlot(vehicleType)`   |
+| Clock skew            | Kiosk clocks out of sync                | Centralized time service / inject exitTime | `PricingService.calculateFee(..., LocalDateTime)` |
+| Slot inconsistency    | Crash or partial transaction            | Periodic reconciliation background job     | `ReconciliationService` (scheduled task)          |
+
+---
+
+## Step 7: Class diagrams and UML relationships
+
+When drawing a class diagram, three types of relationships communicate the intent and ownership between classes. Using the right one isn't just notation — it tells the reader about lifecycle, replaceability, and dependency.
+
+### 1. Association — "I work with you"
+
+A class _uses_ another class by holding a reference to it, but neither owns the other. Both exist independently. This is the most general relationship.
+
+**In this codebase:**
+
+```
+ExitController ——> PaymentService
+```
+
+`ExitController` calls `PaymentService` to process a payment. It holds a reference, but `PaymentService` exists independently — it could be used by other controllers too. If `ExitController` is destroyed, `PaymentService` lives on.
+
+**UML notation:** plain arrow `——>`
+
+---
+
+### 2. Aggregation — "I have you, but you are not mine"
+
+A class _contains_ another class, but the contained object has an independent lifecycle. It can exist without the container. This is a "has-a" relationship where ownership is shared or weak.
+
+**In this codebase:**
+
+```
+Floor <>——> ParkingSlot
+```
+
+A `Floor` has a `List<ParkingSlot>`. But a `ParkingSlot` is created separately by `AdminService` and added to the floor afterward. If a floor were removed, the slots could conceptually be reassigned. The slot doesn't belong _exclusively_ to the floor.
+
+**UML notation:** open diamond `<>——>`
+
+---
+
+### 3. Composition — "You are mine and only mine"
+
+The strongest relationship. The contained object's lifecycle is _entirely controlled_ by the container — created by it, and destroyed with it. It cannot exist independently.
+
+**In this codebase:**
+
+```
+Ticket ◆——> entryTime (LocalDateTime)
+Receipt ◆——> exitTime (LocalDateTime)
+```
+
+`entryTime` is stamped inside the `Ticket` constructor and has no meaning outside of a ticket. It can't be shared, transferred, or exist on its own. Same for `exitTime` on `Receipt`.
+
+**UML notation:** filled diamond `◆——>`
+
+---
+
+### Comparison table
+
+| Relationship | Ownership          | Lifecycle of contained object           | Example in codebase                    |
+| ------------ | ------------------ | --------------------------------------- | -------------------------------------- |
+| Association  | None               | Fully independent                       | `ExitController` uses `PaymentService` |
+| Aggregation  | Weak / shared      | Independent — can outlive the container | `Floor` has `List<ParkingSlot>`        |
+| Composition  | Strong / exclusive | Dependent — dies with the parent        | `Ticket` owns its `entryTime`          |
+
+### Why this matters
+
+Getting these relationships right is what makes a class diagram useful for communication, not just documentation. Saying `Floor <>——> ParkingSlot` tells a reader "slots can be moved between floors or exist without one." Saying `Ticket ◆——> entryTime` tells a reader "don't try to share or transfer this — it belongs to exactly one ticket and always will." A diagram where every relationship is drawn as a plain arrow conveys no ownership information at all.
+
+---
+
+## Step 8: Key implementation decisions
+
+These are the non-obvious choices that came out of the code walkthrough — the kind of details that separate a design that compiles from one that's production-aware.
+
+### Fee calculation — `calculateHourlyFee`
+
+The hourly fee calculation has three rules baked in, each deliberate:
+
+**Round up partial hours with `Math.ceil(minutes / 60.0)`** — parking lots bill partial hours as full hours. 61 minutes = 2 hours billed. The `.0` on `60.0` is critical: without it, Java performs integer division before `ceil` gets a chance, so 61 / 60 = 1 (not 1.016...) and `ceil(1)` = 1 — silently under-charging by a full hour.
+
+**Minimum charge of 1 hour via `Math.max(hours, 1.0)`** — a driver who parks for 3 minutes still pays for a full hour. This is a business rule that lives in the fee calculation, not in the pricing rule entity, because it applies universally regardless of vehicle type or rate.
+
+**Pass `exitTime` as a parameter, don't call `LocalDateTime.now()` inside the method** — calling `now()` internally makes the method untestable (you can't control time in a test) and vulnerable to the clock-skew edge case. The cleaner signature `calculateFee(Ticket, VehicleType, LocalDateTime exitTime)` lets the caller supply the timestamp from a trusted source.
+
+### Payment — `processPayment` and `processPaymentWithRetry`
+
+**Save the payment record before calling the gateway** — the `Payment` row is persisted with PENDING status _before_ `defaultGateway.pay()` is called. If the process crashes mid-call, there's still an audit record. This prevents silent failures from disappearing entirely.
+
+**Each retry attempt creates its own `Payment` row** — `processPaymentWithRetry` calls `processPayment` on each attempt, and `processPayment` saves a new row each time. This gives a complete per-attempt audit trail rather than a single overwritten record, which is essential for dispute resolution.
+
+**Gateway switches on retry: Razorpay → Stripe after the first failure** — if Razorpay is down, retrying against Razorpay again is pointless. Switching to Stripe on the second attempt is a practical resilience pattern. One caveat: the current implementation mutates `defaultGateway` on the instance, meaning after a retry-triggered switch, `PaymentService` permanently uses Stripe. Whether that's intentional (sticky switch) or a side effect is worth making explicit in production.
+
+**`setDefaultGateway()` as a public setter** — this is a testing seam (inject a mock adapter without changing the constructor) and a runtime hook for admin-controlled gateway switching.
+
+### Receipt — two-method design
+
+`generateReceipt()` and `markReceiptAsPaid()` are kept as two separate calls rather than one combined method. This is intentional: a receipt can be created in PENDING state before payment is confirmed, giving the system an audit record even if the subsequent `markAsPaid` call never arrives (due to a crash between the two calls). The receipt exists; its status reflects the true payment outcome.
+
+### Ticket deactivation — why it's the last step in exit
+
+`deactivateTicket()` is called after slot release, not before. The ordering matters: if deactivation were called first and then the slot release failed, the ticket would be permanently unusable but the slot would still be marked occupied — a stuck state. Releasing the slot first, then deactivating the ticket, means the worst case on failure is a still-active ticket against a now-free slot, which is recoverable (the driver can retry exit).
+
+### `ParkingLotSimulation` — design of the demo runner
+
+The simulation class (`ParkingLotSimulation.java`) demonstrates a pattern worth noting for any demo or integration test entrypoint:
+
+**Phases are clearly labelled and sequenced** — INITIALIZATION → ENTRY → EXIT → ADMIN → FINAL STATUS. This mirrors the real operational lifecycle of the system and makes the output readable as a log.
+
+**Exit simulation queries the repository, not memory** — active tickets are fetched via `ticketRepository.findActiveTickets()` rather than tracking returned ticket IDs from the entry calls. This demonstrates that the system is genuinely state-driven: you don't need in-memory handles to tickets; the repository is the source of truth.
+
+**Helper methods per phase** — `simulateVehicleEntry`, `simulateVehicleExit`, `simulateAdminOperations` keep `main()` readable as a high-level script with details pushed into named helpers. This is a good habit for any integration test or simulation entrypoint.
+
+**`initializeParkingLot()` on `AdminController`** — instead of repeating setup inline in `main()`, a dedicated initialization method seeds floors, slots, and pricing rules in one call. This makes the simulation self-contained and the setup reusable if tests need the same starting state.
+
+---
 
 ## Design principles applied
 
