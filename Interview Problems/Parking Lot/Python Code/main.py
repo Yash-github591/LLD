@@ -83,8 +83,7 @@ def main():
 
     admin_controller.view_parking_status()
 
-    print("\n========== EDGE CASE: REUSE DEACTIVATED TICKET ==========
-")
+    print("\n========== EDGE CASE: REUSE DEACTIVATED TICKET ==========")
     replay_result = exit_controller.exit_vehicle(ticket.id)
     print("Replay result (should fail):", replay_result)
 
